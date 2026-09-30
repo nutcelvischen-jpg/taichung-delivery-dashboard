@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taichung City Delivery Driver Traffic Accidents Dashboard (2022-2026)</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body {
+      background-color: #ffffff;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .card-white {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    }
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      transition: all 0.1s ease;
+      z-index: 50;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    }
+    /* Clean light scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f8fafc;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-white min-h-screen p-4 md:p-8 antialiased">
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Header Section -->
+    <header class="card-white p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white">
+      <div>
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+            Open Data Analytics
+          </span>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            Taichung City Police Dept.
+          </span>
+        </div>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Delivery Driver Traffic Accident Analytics Dashboard
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Historical Time-Series & Severity Breakdown across 16 Quarters (2022 Q3 – 2026 Q2)
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2 self-stretch md:self-auto">
+        <button id="btn-export-csv" class="px-3.5 py-2 text-xs md:text-sm font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Export CSV
+        </button>
+        <button id="btn-reset-filters" class="px-3.5 py-2 text-xs md:text-sm font-medium rounded-lg bg-sky-600 hover:bg-sky-700 text-white transition flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Reset Filters
+        </button>
+      </div>
+    </header>
+
+    <!-- Interactive Filters Control Panel -->
+    <section class="card-white p-5 space-y-4 bg-white">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+          <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          Interactive Filter Controls
+        </h2>
+        <span id="filter-status-badge" class="text-xs text-sky-700 font-mono font-medium bg-sky-50 px-2.5 py-1 rounded-md border border-sky-200">
+          Showing 16 Quarters
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+        <!-- Year Filter Selector -->
+        <div class="md:col-span-6 space-y-1.5">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+            <span>Filter by Year (2022 - 2026)</span>
+            <span class="text-[11px] text-slate-400 font-normal">Click pills to toggle years</span>
+          </label>
+          <div class="flex flex-wrap gap-1.5" id="year-btn-group">
+            <button data-year="ALL" class="year-pill px-3 py-1.5 text-xs font-semibold rounded-md border transition active bg-sky-600 text-white border-sky-600 shadow-sm">
+              All (2022-2026)
+            </button>
+            <button data-year="2022" class="year-pill px-3 py-1.5 text-xs font-medium rounded-md border transition bg-white hover:bg-slate-50 text-slate-700 border-slate-300">
+              2022
+            </button>
+            <button data-year="2023" class="year-pill px-3 py-1.5 text-xs font-medium rounded-md border transition bg-white hover:bg-slate-50 text-slate-700 border-slate-300">
+              2023
+            </button>
+            <button data-year="2024" class="year-pill px-3 py-1.5 text-xs font-medium rounded-md border transition bg-white hover:bg-slate-50 text-slate-700 border-slate-300">
+              2024
+            </button>
+            <button data-year="2025" class="year-pill px-3 py-1.5 text-xs font-medium rounded-md border transition bg-white hover:bg-slate-50 text-slate-700 border-slate-300">
+              2025
+            </button>
+            <button data-year="2026" class="year-pill px-3 py-1.5 text-xs font-medium rounded-md border transition bg-white hover:bg-slate-50 text-slate-700 border-slate-300">
+              2026
+            </button>
+          </div>
+        </div>
+
+        <!-- Category Filter Selector -->
+        <div class="md:col-span-4 space-y-1.5">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">
+            Select Category Focus
+          </label>
+          <select id="category-select" class="w-full bg-white border border-slate-300 rounded-md px-3 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition shadow-sm">
+            <option value="ALL">All Categories Breakdown (A1, A2, A3)</option>
+            <option value="TOTAL">Total Incidents Only (總計)</option>
+            <option value="A1">Category A1: Fatal Accidents (A1類: 死亡)</option>
+            <option value="A2">Category A2: Injury Accidents (A2類: 受傷)</option>
+            <option value="A3">Category A3: Property Damage Only (A3類: 車損)</option>
+            <option value="CASUALTY">Casualties Only (Fatalities & Injuries)</option>
+          </select>
+        </div>
+
+        <!-- Display Mode Toggle -->
+        <div class="md:col-span-2 space-y-1.5">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">
+            Display Mode
+          </label>
+          <div class="flex rounded-md border border-slate-200 p-0.5 bg-slate-100" id="view-mode-toggle">
+            <button data-mode="quarterly" class="view-mode-btn flex-1 py-1 text-xs font-semibold rounded bg-white text-slate-900 shadow-sm transition text-center">
+              Quarterly
+            </button>
+            <button data-mode="yearly" class="view-mode-btn flex-1 py-1 text-xs font-medium rounded text-slate-600 hover:text-slate-900 transition text-center">
+              Annual
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Metrics Summary KPI Cards -->
+    <section class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="kpi-cards">
+      <!-- Total Incidents -->
+      <div class="card-white p-4 space-y-1 relative overflow-hidden bg-white">
+        <div class="absolute top-0 right-0 w-16 h-16 bg-sky-50 rounded-full blur-xl pointer-events-none"></div>
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Incidents</p>
+        <div class="flex items-baseline gap-2">
+          <span id="kpi-total" class="text-2xl lg:text-3xl font-extrabold text-sky-600 font-mono">0</span>
+          <span class="text-xs text-slate-400">cases</span>
+        </div>
+        <p id="kpi-avg" class="text-[11px] text-slate-500">Avg 0 / quarter</p>
+      </div>
+
+      <!-- Category A1 (Fatal) -->
+      <div class="card-white p-4 space-y-1 relative overflow-hidden bg-white">
+        <div class="absolute top-0 right-0 w-16 h-16 bg-rose-50 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold text-rose-700 uppercase tracking-wider">Cat A1 (Fatal)</p>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-semibold font-mono">Death &lt;24h</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="kpi-a1" class="text-2xl lg:text-3xl font-extrabold text-rose-600 font-mono">0</span>
+          <span class="text-xs text-slate-400">cases</span>
+        </div>
+        <p id="kpi-deaths" class="text-[11px] text-rose-600 font-medium">0 Fatalities</p>
+      </div>
+
+      <!-- Category A2 (Injury) -->
+      <div class="card-white p-4 space-y-1 relative overflow-hidden bg-white">
+        <div class="absolute top-0 right-0 w-16 h-16 bg-amber-50 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold text-amber-700 uppercase tracking-wider">Cat A2 (Injury)</p>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold font-mono">Injuries</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="kpi-a2" class="text-2xl lg:text-3xl font-extrabold text-amber-600 font-mono">0</span>
+          <span class="text-xs text-slate-400">cases</span>
+        </div>
+        <p id="kpi-injuries" class="text-[11px] text-amber-600 font-medium">0 Injuries recorded</p>
+      </div>
+
+      <!-- Category A3 (Property Damage) -->
+      <div class="card-white p-4 space-y-1 relative overflow-hidden bg-white">
+        <div class="absolute top-0 right-0 w-16 h-16 bg-indigo-50 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold text-indigo-700 uppercase tracking-wider">Cat A3 (Damage)</p>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold font-mono">Vehicle Only</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="kpi-a3" class="text-2xl lg:text-3xl font-extrabold text-indigo-600 font-mono">0</span>
+          <span class="text-xs text-slate-400">cases</span>
+        </div>
+        <p id="kpi-a3-ratio" class="text-[11px] text-indigo-600 font-medium">0% of total</p>
+      </div>
+
+      <!-- Casualty Ratio -->
+      <div class="card-white p-4 space-y-1 col-span-2 lg:col-span-1 relative overflow-hidden bg-white">
+        <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-full blur-xl pointer-events-none"></div>
+        <p class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Casualty Rate</p>
+        <div class="flex items-baseline gap-2">
+          <span id="kpi-ratio" class="text-2xl lg:text-3xl font-extrabold text-emerald-600 font-mono">0.0%</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Accidents resulting in harm (A1+A2)</p>
+      </div>
+    </section>
+
+    <!-- Main Visualizations Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Column: Primary Interactive SVG Time-Series Chart -->
+      <section class="card-white p-5 lg:col-span-8 flex flex-col justify-between bg-white">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2" id="chart-main-title">
+              Traffic Accident Trend Line (2022 - 2026)
+            </h3>
+            <p class="text-xs text-slate-500" id="chart-main-desc">
+              Incident volume across selected period with category breakdown
+            </p>
+          </div>
+          <!-- Legend -->
+          <div class="flex flex-wrap items-center gap-3 text-xs" id="chart-legend">
+            <span class="inline-flex items-center gap-1.5 text-slate-700 font-medium">
+              <span class="w-3 h-3 rounded-full bg-sky-500"></span> Total
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-700 font-medium">
+              <span class="w-3 h-3 rounded-full bg-amber-500"></span> A2 (Injury)
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-700 font-medium">
+              <span class="w-3 h-3 rounded-full bg-indigo-500"></span> A3 (Damage)
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-700 font-medium">
+              <span class="w-3 h-3 rounded-full bg-rose-500"></span> A1 (Fatal)
+            </span>
+          </div>
+        </div>
+
+        <!-- SVG Chart Container -->
+        <div class="relative w-full h-80 sm:h-96" id="svg-chart-wrapper">
+          <svg id="trend-svg" class="w-full h-full overflow-visible" preserveAspectRatio="none"></svg>
+          <!-- Floating Tooltip -->
+          <div id="chart-tooltip" class="chart-tooltip hidden bg-slate-900 text-white rounded-lg p-3 text-xs shadow-xl border border-slate-700"></div>
+        </div>
+      </section>
+
+      <!-- Right Column: Proportions & Key Insights -->
+      <section class="card-white p-5 lg:col-span-4 flex flex-col justify-between space-y-4 bg-white">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Category Share & Proportion</h3>
+          <p class="text-xs text-slate-500">Accident severity distribution</p>
+        </div>
+
+        <!-- SVG Donut Chart -->
+        <div class="relative flex items-center justify-center h-48 sm:h-52">
+          <svg id="donut-svg" class="w-48 h-48" viewBox="0 0 100 100"></svg>
+          <div class="absolute text-center pointer-events-none">
+            <span id="donut-center-total" class="text-xl font-extrabold text-slate-900 font-mono block">0</span>
+            <span class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Total Cases</span>
+          </div>
+        </div>
+
+        <!-- Donut Labels & Stats -->
+        <div class="space-y-2 border-t border-slate-100 pt-3 text-xs" id="donut-stats-list">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Key Insight Box -->
+        <div class="bg-amber-50/80 border border-amber-200 rounded-lg p-3 text-xs space-y-1">
+          <div class="font-bold text-amber-900 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Key Finding
+          </div>
+          <p id="key-insight-text" class="text-amber-950 leading-relaxed font-normal">
+            Injury accidents (Category A2) consistently constitute over 75% of delivery incidents, peaking in 2023 Q3 (670 total cases).
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Data Table Section -->
+    <section class="card-white p-5 space-y-4 bg-white">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Historical Quarter & Year Dataset Breakdown</h3>
+          <p class="text-xs text-slate-500">Click table headers to sort, or filter records below</p>
+        </div>
+        <div class="w-full sm:w-64">
+          <input type="text" id="table-search" placeholder="Quick search period/year..." class="w-full bg-white border border-slate-300 rounded-md px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm">
+        </div>
+      </div>
+
+      <!-- Scrollable Table -->
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full text-left text-xs text-slate-700 divide-y divide-slate-200" id="data-table">
+          <thead class="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider">
+            <tr>
+              <th data-sort="period" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none">Period ↕</th>
+              <th data-sort="year" class="py-3 px-2 cursor-pointer hover:bg-slate-100 transition select-none text-center">AD Year ↕</th>
+              <th data-sort="roc" class="py-3 px-2 cursor-pointer hover:bg-slate-100 transition select-none text-center">ROC Year ↕</th>
+              <th data-sort="quarter" class="py-3 px-2 cursor-pointer hover:bg-slate-100 transition select-none text-center">Quarter ↕</th>
+              <th data-sort="total" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none text-right font-extrabold text-sky-600">Total Cases ↕</th>
+              <th data-sort="a1" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none text-right font-semibold text-rose-600">A1 (Fatal) ↕</th>
+              <th data-sort="a2" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none text-right font-semibold text-amber-600">A2 (Injury) ↕</th>
+              <th data-sort="a3" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none text-right font-semibold text-indigo-600">A3 (Damage) ↕</th>
+              <th data-sort="deaths" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none text-right font-semibold text-rose-600">Deaths ↕</th>
+              <th data-sort="injuries" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none text-right font-semibold text-amber-600">Injuries ↕</th>
+              <th data-sort="ratio" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition select-none text-right font-semibold text-emerald-600">Casualty Rate ↕</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 bg-white" id="table-body">
+            <!-- Populated by JS -->
+          </tbody>
+          <tfoot class="bg-slate-50 font-bold text-slate-900 border-t-2 border-slate-300" id="table-footer">
+            <!-- Populated by JS -->
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer Note -->
+    <footer class="text-center text-xs text-slate-400 py-2">
+      Data Source: Taichung City Open Data Platform (臺中市政府資料開放平臺) · Delivery Driver Traffic Statistics (111-115) · License: OGDL-1.0
+    </footer>
+
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    const RAW_DATA = [{"year": 2022, "roc": 111, "quarter": "Q3", "period": "2022 Q3", "date_range": "2022-07-01 to 2022-09-30", "total": 299, "a1": 1, "a2": 250, "a3": 48, "deaths": 1, "injuries": 349}, {"year": 2022, "roc": 111, "quarter": "Q4", "period": "2022 Q4", "date_range": "2022-10-01 to 2022-12-31", "total": 363, "a1": 0, "a2": 290, "a3": 73, "deaths": 0, "injuries": 411}, {"year": 2023, "roc": 112, "quarter": "Q1", "period": "2023 Q1", "date_range": "2023-01-01 to 2023-03-31", "total": 433, "a1": 1, "a2": 348, "a3": 84, "deaths": 1, "injuries": 518}, {"year": 2023, "roc": 112, "quarter": "Q2", "period": "2023 Q2", "date_range": "2023-04-01 to 2023-06-30", "total": 365, "a1": 1, "a2": 285, "a3": 79, "deaths": 1, "injuries": 392}, {"year": 2023, "roc": 112, "quarter": "Q3", "period": "2023 Q3", "date_range": "2023-07-01 to 2023-09-30", "total": 670, "a1": 1, "a2": 501, "a3": 168, "deaths": 1, "injuries": 688}, {"year": 2023, "roc": 112, "quarter": "Q4", "period": "2023 Q4", "date_range": "2023-10-01 to 2023-12-31", "total": 537, "a1": 0, "a2": 427, "a3": 110, "deaths": 0, "injuries": 596}, {"year": 2024, "roc": 113, "quarter": "Q1", "period": "2024 Q1", "date_range": "2024-01-01 to 2024-03-31", "total": 569, "a1": 0, "a2": 429, "a3": 140, "deaths": 0, "injuries": 594}, {"year": 2024, "roc": 113, "quarter": "Q2", "period": "2024 Q2", "date_range": "2024-04-01 to 2024-06-30", "total": 420, "a1": 1, "a2": 314, "a3": 105, "deaths": 1, "injuries": 432}, {"year": 2024, "roc": 113, "quarter": "Q3", "period": "2024 Q3", "date_range": "2024-07-01 to 2024-09-30", "total": 479, "a1": 0, "a2": 356, "a3": 123, "deaths": 0, "injuries": 493}, {"year": 2024, "roc": 113, "quarter": "Q4", "period": "2024 Q4", "date_range": "2024-10-01 to 2024-12-31", "total": 465, "a1": 0, "a2": 369, "a3": 96, "deaths": 0, "injuries": 513}, {"year": 2025, "roc": 114, "quarter": "Q1", "period": "2025 Q1", "date_range": "2025-01-01 to 2025-03-31", "total": 431, "a1": 2, "a2": 315, "a3": 114, "deaths": 2, "injuries": 444}, {"year": 2025, "roc": 114, "quarter": "Q2", "period": "2025 Q2", "date_range": "2025-04-01 to 2025-06-30", "total": 388, "a1": 0, "a2": 282, "a3": 106, "deaths": 0, "injuries": 380}, {"year": 2025, "roc": 114, "quarter": "Q3", "period": "2025 Q3", "date_range": "2025-07-01 to 2025-09-30", "total": 389, "a1": 0, "a2": 295, "a3": 94, "deaths": 0, "injuries": 388}, {"year": 2025, "roc": 114, "quarter": "Q4", "period": "2025 Q4", "date_range": "2025-10-01 to 2025-12-31", "total": 421, "a1": 0, "a2": 310, "a3": 111, "deaths": 0, "injuries": 432}, {"year": 2026, "roc": 115, "quarter": "Q1", "period": "2026 Q1", "date_range": "2026-01-01 to 2026-03-31", "total": 408, "a1": 0, "a2": 292, "a3": 116, "deaths": 0, "injuries": 396}, {"year": 2026, "roc": 115, "quarter": "Q2", "period": "2026 Q2", "date_range": "2026-04-01 to 2026-06-30", "total": 372, "a1": 1, "a2": 279, "a3": 92, "deaths": 1, "injuries": 371}];
+
+    // State
+    let selectedYears = new Set(['ALL']); // 'ALL' or specific years e.g. [2022, 2023]
+    let selectedCategory = 'ALL'; // ALL, TOTAL, A1, A2, A3, CASUALTY
+    let viewMode = 'quarterly'; // 'quarterly' or 'yearly'
+    let sortColumn = 'period';
+    let sortAsc = true;
+    let searchQuery = '';
+
+    // Elements
+    const yearPills = document.querySelectorAll('.year-pill');
+    const categorySelect = document.getElementById('category-select');
+    const viewModeBtns = document.querySelectorAll('.view-mode-btn');
+    const resetBtn = document.getElementById('btn-reset-filters');
+    const exportCsvBtn = document.getElementById('btn-export-csv');
+    const tableSearch = document.getElementById('table-search');
+    const trendSvg = document.getElementById('trend-svg');
+    const donutSvg = document.getElementById('donut-svg');
+    const tooltip = document.getElementById('chart-tooltip');
+
+    // Event Listeners
+    yearPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const yr = pill.dataset.year;
+        if (yr === 'ALL') {
+          selectedYears.clear();
+          selectedYears.add('ALL');
+        } else {
+          selectedYears.delete('ALL');
+          const numYr = parseInt(yr);
+          if (selectedYears.has(numYr)) {
+            selectedYears.delete(numYr);
+            if (selectedYears.size === 0) selectedYears.add('ALL');
+          } else {
+            selectedYears.add(numYr);
+          }
+        }
+        updateYearPillStyles();
+        renderDashboard();
+      });
+    });
+
+    function updateYearPillStyles() {
+      yearPills.forEach(pill => {
+        const yr = pill.dataset.year;
+        const isActive = (yr === 'ALL' && selectedYears.has('ALL')) || (yr !== 'ALL' && selectedYears.has(parseInt(yr)));
+        if (isActive) {
+          pill.className = 'year-pill px-3 py-1.5 text-xs font-semibold rounded-md border transition active bg-sky-600 text-white border-sky-600 shadow-sm';
+        } else {
+          pill.className = 'year-pill px-3 py-1.5 text-xs font-medium rounded-md border transition bg-white hover:bg-slate-50 text-slate-700 border-slate-300';
+        }
+      });
+    }
+
+    categorySelect.addEventListener('change', (e) => {
+      selectedCategory = e.target.value;
+      renderDashboard();
+    });
+
+    viewModeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewMode = btn.dataset.mode;
+        viewModeBtns.forEach(b => {
+          if (b.dataset.mode === viewMode) {
+            b.className = 'view-mode-btn flex-1 py-1 text-xs font-semibold rounded bg-white text-slate-900 shadow-sm transition text-center';
+          } else {
+            b.className = 'view-mode-btn flex-1 py-1 text-xs font-medium rounded text-slate-600 hover:text-slate-900 transition text-center';
+          }
+        });
+        renderDashboard();
+      });
+    });
+
+    resetBtn.addEventListener('click', () => {
+      selectedYears = new Set(['ALL']);
+      selectedCategory = 'ALL';
+      categorySelect.value = 'ALL';
+      viewMode = 'quarterly';
+      tableSearch.value = '';
+      searchQuery = '';
+      sortColumn = 'period';
+      sortAsc = true;
+      updateYearPillStyles();
+      viewModeBtns.forEach(b => {
+        b.className = b.dataset.mode === 'quarterly' 
+          ? 'view-mode-btn flex-1 py-1 text-xs font-semibold rounded bg-white text-slate-900 shadow-sm transition text-center'
+          : 'view-mode-btn flex-1 py-1 text-xs font-medium rounded text-slate-600 hover:text-slate-900 transition text-center';
+      });
+      renderDashboard();
+    });
+
+    tableSearch.addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      renderTable();
+    });
+
+    // Filtering logic
+    function getFilteredData() {
+      let filtered = RAW_DATA.filter(item => {
+        if (!selectedYears.has('ALL') && !selectedYears.has(item.year)) {
+          return false;
+        }
+        return true;
+      });
+
+      if (viewMode === 'yearly') {
+        const byYear = {};
+        filtered.forEach(d => {
+          if (!byYear[d.year]) {
+            byYear[d.year] = {
+              year: d.year,
+              roc: d.roc,
+              quarter: 'Full Year',
+              period: `${d.year} (ROC ${d.roc})`,
+              total: 0,
+              a1: 0,
+              a2: 0,
+              a3: 0,
+              deaths: 0,
+              injuries: 0
+            };
+          }
+          byYear[d.year].total += d.total;
+          byYear[d.year].a1 += d.a1;
+          byYear[d.year].a2 += d.a2;
+          byYear[d.year].a3 += d.a3;
+          byYear[d.year].deaths += d.deaths;
+          byYear[d.year].injuries += d.injuries;
+        });
+        return Object.values(byYear).sort((a,b) => a.year - b.year);
+      }
+
+      return filtered;
+    }
+
+    // Main Render
+    function renderDashboard() {
+      const data = getFilteredData();
+      updateFilterBadge(data);
+      renderKPIs(data);
+      renderTrendChart(data);
+      renderDonutChart(data);
+      renderTable(data);
+    }
+
+    function updateFilterBadge(data) {
+      const badge = document.getElementById('filter-status-badge');
+      let yrText = selectedYears.has('ALL') ? 'All Years (2022-2026)' : Array.from(selectedYears).sort().join(', ');
+      let countText = viewMode === 'yearly' ? `${data.length} Years` : `${data.length} Quarters`;
+      badge.textContent = `${yrText} · ${countText}`;
+    }
+
+    function renderKPIs(data) {
+      const totalIncidents = data.reduce((acc, d) => acc + d.total, 0);
+      const totalA1 = data.reduce((acc, d) => acc + d.a1, 0);
+      const totalA2 = data.reduce((acc, d) => acc + d.a2, 0);
+      const totalA3 = data.reduce((acc, d) => acc + d.a3, 0);
+      const totalDeaths = data.reduce((acc, d) => acc + d.deaths, 0);
+      const totalInjuries = data.reduce((acc, d) => acc + d.injuries, 0);
+
+      const casualtyRate = totalIncidents > 0 ? ((totalA1 + totalA2) / totalIncidents * 100).toFixed(1) : '0.0';
+      const a3Ratio = totalIncidents > 0 ? ((totalA3 / totalIncidents) * 100).toFixed(1) : '0.0';
+      const avgPerPeriod = data.length > 0 ? Math.round(totalIncidents / data.length) : 0;
+
+      document.getElementById('kpi-total').textContent = totalIncidents.toLocaleString();
+      document.getElementById('kpi-avg').textContent = `Avg ${avgPerPeriod} / ${viewMode === 'yearly' ? 'year' : 'quarter'}`;
+
+      document.getElementById('kpi-a1').textContent = totalA1.toLocaleString();
+      document.getElementById('kpi-deaths').textContent = `${totalDeaths} Fatalities reported`;
+
+      document.getElementById('kpi-a2').textContent = totalA2.toLocaleString();
+      document.getElementById('kpi-injuries').textContent = `${totalInjuries.toLocaleString()} Injuries reported`;
+
+      document.getElementById('kpi-a3').textContent = totalA3.toLocaleString();
+      document.getElementById('kpi-a3-ratio').textContent = `${a3Ratio}% of all incidents`;
+
+      document.getElementById('kpi-ratio').textContent = `${casualtyRate}%`;
+
+      // Update Key Insight Text
+      let peakPeriod = data.slice().sort((a,b) => b.total - a.total)[0];
+      if (peakPeriod) {
+        document.getElementById('key-insight-text').innerHTML = 
+          `Highest accident volume in selected range occurred in <strong class="text-slate-900">${peakPeriod.period}</strong> with <strong class="text-sky-700">${peakPeriod.total} cases</strong>. Injury accidents (A2) account for <strong class="text-amber-800">${(totalA2 / (totalIncidents || 1) * 100).toFixed(1)}%</strong> of cases.`;
+      }
+    }
+
+    // Render SVG Multi-series Line & Area Chart (Light theme)
+    function renderTrendChart(data) {
+      trendSvg.innerHTML = '';
+      if (!data || data.length === 0) {
+        trendSvg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="#94a3b8" font-size="14">No data matches the selected filters</text>`;
+        return;
+      }
+
+      const rect = trendSvg.getBoundingClientRect();
+      const W = rect.width || 600;
+      const H = rect.height || 320;
+      const padL = 50;
+      const padR = 25;
+      const padT = 20;
+      const padB = 40;
+
+      const chartW = W - padL - padR;
+      const chartH = H - padT - padB;
+
+      let maxY = 100;
+      if (selectedCategory === 'TOTAL') {
+        maxY = Math.max(...data.map(d => d.total));
+      } else if (selectedCategory === 'A1') {
+        maxY = Math.max(3, ...data.map(d => d.a1));
+      } else if (selectedCategory === 'A2') {
+        maxY = Math.max(...data.map(d => d.a2));
+      } else if (selectedCategory === 'A3') {
+        maxY = Math.max(...data.map(d => d.a3));
+      } else if (selectedCategory === 'CASUALTY') {
+        maxY = Math.max(...data.map(d => d.injuries + d.deaths));
+      } else {
+        maxY = Math.max(...data.map(d => d.total));
+      }
+      maxY = Math.ceil(maxY * 1.15 / 50) * 50 || 50;
+      if (selectedCategory === 'A1') maxY = Math.max(4, Math.ceil(Math.max(...data.map(d => d.a1)) * 1.5));
+
+      // Draw Grid Lines & Y-axis labels
+      const yTicks = 5;
+      let gridSvg = '';
+      for (let i = 0; i <= yTicks; i++) {
+        const val = Math.round((maxY / yTicks) * i);
+        const yPos = padT + chartH - (i / yTicks) * chartH;
+        gridSvg += `
+          <line x1="${padL}" y1="${yPos}" x2="${W - padR}" y2="${yPos}" stroke="#f1f5f9" stroke-width="1.5"/>
+          <line x1="${padL}" y1="${yPos}" x2="${W - padR}" y2="${yPos}" stroke="#e2e8f0" stroke-dasharray="3,3" stroke-width="1"/>
+          <text x="${padL - 10}" y="${yPos + 4}" fill="#64748b" font-size="11" text-anchor="end" font-family="monospace" font-weight="500">${val}</text>
+        `;
+      }
+
+      // X scale
+      const stepX = data.length > 1 ? chartW / (data.length - 1) : chartW / 2;
+      const getX = (idx) => data.length === 1 ? padL + chartW / 2 : padL + idx * stepX;
+      const getY = (val) => padT + chartH - (val / maxY) * chartH;
+
+      // Draw X-axis labels
+      let xLabelsSvg = '';
+      data.forEach((d, idx) => {
+        const x = getX(idx);
+        const label = viewMode === 'yearly' ? `${d.year}` : d.quarter;
+        const subLabel = viewMode === 'yearly' ? `ROC ${d.roc}` : `'${String(d.year).slice(2)}`;
+        xLabelsSvg += `
+          <line x1="${x}" y1="${padT + chartH}" x2="${x}" y2="${padT + chartH + 5}" stroke="#cbd5e1"/>
+          <text x="${x}" y="${padT + chartH + 18}" fill="#1e293b" font-size="11" text-anchor="middle" font-weight="600">${label}</text>
+          <text x="${x}" y="${padT + chartH + 30}" fill="#64748b" font-size="10" text-anchor="middle">${subLabel}</text>
+        `;
+      });
+
+      // Prepare Series with high-contrast colors
+      const seriesList = [];
+      if (selectedCategory === 'ALL' || selectedCategory === 'TOTAL') {
+        seriesList.push({ name: 'Total Incidents', key: 'total', color: '#0284c7', fill: 'rgba(2, 132, 199, 0.08)' });
+      }
+      if (selectedCategory === 'ALL' || selectedCategory === 'A2') {
+        seriesList.push({ name: 'Category A2 (Injury)', key: 'a2', color: '#d97706', fill: 'rgba(217, 119, 6, 0.06)' });
+      }
+      if (selectedCategory === 'ALL' || selectedCategory === 'A3') {
+        seriesList.push({ name: 'Category A3 (Damage)', key: 'a3', color: '#4f46e5', fill: 'rgba(79, 70, 229, 0.06)' });
+      }
+      if (selectedCategory === 'ALL' || selectedCategory === 'A1') {
+        seriesList.push({ name: 'Category A1 (Fatal)', key: 'a1', color: '#e11d48', fill: 'rgba(225, 29, 72, 0.1)' });
+      }
+      if (selectedCategory === 'CASUALTY') {
+        seriesList.push({ name: 'Injuries', key: 'injuries', color: '#d97706', fill: 'rgba(217, 119, 6, 0.08)' });
+        seriesList.push({ name: 'Fatalities', key: 'deaths', color: '#e11d48', fill: 'rgba(225, 29, 72, 0.15)' });
+      }
+
+      // Draw Lines, Areas & Circles
+      let pathsSvg = '';
+      let dotsSvg = '';
+
+      seriesList.forEach(series => {
+        let pathD = '';
+        let areaD = '';
+
+        data.forEach((d, idx) => {
+          const x = getX(idx);
+          const y = getY(d[series.key]);
+          if (idx === 0) {
+            pathD += `M ${x} ${y}`;
+            areaD += `M ${x} ${padT + chartH} L ${x} ${y}`;
+          } else {
+            const prevX = getX(idx - 1);
+            const prevY = getY(data[idx - 1][series.key]);
+            const cpX1 = prevX + (x - prevX) / 2;
+            const cpX2 = prevX + (x - prevX) / 2;
+            pathD += ` C ${cpX1} ${prevY}, ${cpX2} ${y}, ${x} ${y}`;
+            areaD += ` C ${cpX1} ${prevY}, ${cpX2} ${y}, ${x} ${y}`;
+          }
+        });
+
+        const lastX = getX(data.length - 1);
+        areaD += ` L ${lastX} ${padT + chartH} Z`;
+
+        pathsSvg += `
+          <path d="${areaD}" fill="${series.fill}" />
+          <path d="${pathD}" fill="none" stroke="${series.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        `;
+
+        data.forEach((d, idx) => {
+          const x = getX(idx);
+          const y = getY(d[series.key]);
+          dotsSvg += `
+            <circle cx="${x}" cy="${y}" r="4.5" fill="${series.color}" stroke="#ffffff" stroke-width="2" class="cursor-pointer hover:r-6 transition-all" data-period="${d.period}" data-key="${series.key}" data-val="${d[series.key]}" data-name="${series.name}"/>
+          `;
+        });
+      });
+
+      // Hover overlay columns for interactive tooltips
+      let hoverColsSvg = '';
+      data.forEach((d, idx) => {
+        const x = getX(idx);
+        const colW = data.length > 1 ? stepX : chartW;
+        hoverColsSvg += `
+          <rect x="${x - colW/2}" y="${padT}" width="${colW}" height="${chartH}" fill="transparent" class="hover-trigger cursor-crosshair" data-idx="${idx}"/>
+        `;
+      });
+
+      trendSvg.innerHTML = gridSvg + xLabelsSvg + pathsSvg + dotsSvg + hoverColsSvg;
+
+      // Attach hover listener
+      const triggers = trendSvg.querySelectorAll('.hover-trigger');
+      triggers.forEach(t => {
+        t.addEventListener('mouseenter', (e) => {
+          const idx = parseInt(e.target.dataset.idx);
+          showTooltip(e, data[idx]);
+        });
+        t.addEventListener('mousemove', (e) => {
+          positionTooltip(e);
+        });
+        t.addEventListener('mouseleave', () => {
+          hideTooltip();
+        });
+      });
+    }
+
+    function showTooltip(e, d) {
+      tooltip.classList.remove('hidden');
+      tooltip.innerHTML = `
+        <div class="font-bold text-white border-b border-slate-700 pb-1 mb-1.5 flex justify-between items-center gap-4">
+          <span>${d.period}</span>
+          <span class="text-[11px] text-slate-300 font-mono">${d.date_range || 'ROC ' + d.roc}</span>
+        </div>
+        <div class="space-y-1">
+          <div class="flex justify-between gap-4"><span class="text-sky-300 font-medium">Total Incidents:</span> <span class="font-mono font-bold">${d.total.toLocaleString()}</span></div>
+          <div class="flex justify-between gap-4"><span class="text-rose-300">Cat A1 (Fatal):</span> <span class="font-mono font-semibold">${d.a1} (${d.deaths} deaths)</span></div>
+          <div class="flex justify-between gap-4"><span class="text-amber-300">Cat A2 (Injury):</span> <span class="font-mono font-semibold">${d.a2} (${d.injuries} injured)</span></div>
+          <div class="flex justify-between gap-4"><span class="text-indigo-300">Cat A3 (Damage):</span> <span class="font-mono font-semibold">${d.a3}</span></div>
+          <div class="pt-1 mt-1 border-t border-slate-750 flex justify-between gap-4 text-emerald-300 font-semibold">
+            <span>Casualty Rate:</span>
+            <span class="font-mono">${((d.a1 + d.a2) / (d.total || 1) * 100).toFixed(1)}%</span>
+          </div>
+        </div>
+      `;
+      positionTooltip(e);
+    }
+
+    function positionTooltip(e) {
+      const container = document.getElementById('svg-chart-wrapper').getBoundingClientRect();
+      let left = e.clientX - container.left + 15;
+      let top = e.clientY - container.top - 20;
+
+      if (left + 220 > container.width) {
+        left = e.clientX - container.left - 230;
+      }
+      if (top + 130 > container.height) {
+        top = container.height - 140;
+      }
+      if (top < 0) top = 10;
+
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function hideTooltip() {
+      tooltip.classList.add('hidden');
+    }
+
+    // Render Donut Chart (Proportions of Categories)
+    function renderDonutChart(data) {
+      donutSvg.innerHTML = '';
+      const totalA1 = data.reduce((acc, d) => acc + d.a1, 0);
+      const totalA2 = data.reduce((acc, d) => acc + d.a2, 0);
+      const totalA3 = data.reduce((acc, d) => acc + d.a3, 0);
+      const totalSum = totalA1 + totalA2 + totalA3;
+
+      document.getElementById('donut-center-total').textContent = totalSum.toLocaleString();
+
+      if (totalSum === 0) {
+        donutSvg.innerHTML = `<circle cx="50" cy="50" r="35" fill="none" stroke="#e2e8f0" stroke-width="12" />`;
+        return;
+      }
+
+      const pA2 = (totalA2 / totalSum) * 100;
+      const pA3 = (totalA3 / totalSum) * 100;
+      const pA1 = (totalA1 / totalSum) * 100;
+
+      const r = 35;
+      const C = 2 * Math.PI * r;
+
+      let offset = 0;
+      const slices = [
+        { name: 'Cat A2 (Injury)', val: totalA2, pct: pA2, color: '#f59e0b', len: (pA2 / 100) * C },
+        { name: 'Cat A3 (Damage)', val: totalA3, pct: pA3, color: '#6366f1', len: (pA3 / 100) * C },
+        { name: 'Cat A1 (Fatal)', val: totalA1, pct: pA1, color: '#f43f5e', len: (pA1 / 100) * C }
+      ];
+
+      let svgContent = '';
+      slices.forEach(slice => {
+        svgContent += `
+          <circle cx="50" cy="50" r="${r}" fill="none" stroke="${slice.color}" stroke-width="12"
+            stroke-dasharray="${slice.len} ${C - slice.len}"
+            stroke-dashoffset="${-offset}"
+            transform="rotate(-90 50 50)" class="transition-all duration-500 hover:opacity-80"/>
+        `;
+        offset += slice.len;
+      });
+
+      donutSvg.innerHTML = svgContent;
+
+      const listContainer = document.getElementById('donut-stats-list');
+      listContainer.innerHTML = slices.map(s => `
+        <div class="flex items-center justify-between text-xs py-0.5">
+          <span class="inline-flex items-center gap-1.5 text-slate-700 font-medium">
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${s.color}"></span>
+            ${s.name}
+          </span>
+          <span class="font-mono text-slate-900 font-bold">${s.val.toLocaleString()} <span class="text-slate-500 font-normal">(${s.pct.toFixed(1)}%)</span></span>
+        </div>
+      `).join('');
+    }
+
+    // Render Table (Light theme)
+    function renderTable(dataToRender) {
+      const data = dataToRender || getFilteredData();
+      const tbody = document.getElementById('table-body');
+      const tfoot = document.getElementById('table-footer');
+
+      let tableRows = data.filter(d => {
+        if (!searchQuery) return true;
+        return d.period.toLowerCase().includes(searchQuery) ||
+               String(d.year).includes(searchQuery) ||
+               String(d.roc).includes(searchQuery);
+      });
+
+      tableRows.sort((a, b) => {
+        let valA = a[sortColumn];
+        let valB = b[sortColumn];
+        if (sortColumn === 'ratio') {
+          valA = (a.a1 + a.a2) / (a.total || 1);
+          valB = (b.a1 + b.a2) / (b.total || 1);
+        }
+        if (typeof valA === 'string') {
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return sortAsc ? valA - valB : valB - valA;
+      });
+
+      if (tableRows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400">No records found matching query</td></tr>`;
+        tfoot.innerHTML = '';
+        return;
+      }
+
+      tbody.innerHTML = tableRows.map((d, idx) => {
+        const ratio = ((d.a1 + d.a2) / (d.total || 1) * 100).toFixed(1);
+        const isHighlight = d.total >= 500;
+        return `
+          <tr class="hover:bg-slate-50 transition ${isHighlight ? 'bg-amber-50/40' : ''}">
+            <td class="py-2.5 px-3 font-semibold text-slate-900 flex items-center gap-1.5">
+              ${d.period}
+              ${isHighlight ? '<span class="text-[10px] px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded font-bold">Peak</span>' : ''}
+            </td>
+            <td class="py-2.5 px-2 text-center text-slate-600 font-mono">${d.year}</td>
+            <td class="py-2.5 px-2 text-center text-slate-600 font-mono">${d.roc}</td>
+            <td class="py-2.5 px-2 text-center text-slate-700 font-medium">${d.quarter}</td>
+            <td class="py-2.5 px-3 text-right font-extrabold text-sky-700 font-mono">${d.total.toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-right text-rose-600 font-mono font-medium">${d.a1}</td>
+            <td class="py-2.5 px-3 text-right text-amber-700 font-mono font-medium">${d.a2.toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-right text-indigo-700 font-mono font-medium">${d.a3.toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-right text-rose-600 font-mono font-medium">${d.deaths}</td>
+            <td class="py-2.5 px-3 text-right text-amber-700 font-mono font-medium">${d.injuries.toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-right text-emerald-700 font-mono font-semibold">${ratio}%</td>
+          </tr>
+        `;
+      }).join('');
+
+      const sumTotal = tableRows.reduce((a, b) => a + b.total, 0);
+      const sumA1 = tableRows.reduce((a, b) => a + b.a1, 0);
+      const sumA2 = tableRows.reduce((a, b) => a + b.a2, 0);
+      const sumA3 = tableRows.reduce((a, b) => a + b.a3, 0);
+      const sumDeaths = tableRows.reduce((a, b) => a + b.deaths, 0);
+      const sumInjuries = tableRows.reduce((a, b) => a + b.injuries, 0);
+      const sumRatio = sumTotal > 0 ? ((sumA1 + sumA2) / sumTotal * 100).toFixed(1) : '0.0';
+
+      tfoot.innerHTML = `
+        <tr class="border-t-2 border-slate-300">
+          <td class="py-3 px-3 text-slate-900 font-bold">Summary Total</td>
+          <td class="py-3 px-2 text-center text-slate-400">-</td>
+          <td class="py-3 px-2 text-center text-slate-400">-</td>
+          <td class="py-3 px-2 text-center text-slate-600">${tableRows.length} rows</td>
+          <td class="py-3 px-3 text-right text-sky-700 font-mono font-bold">${sumTotal.toLocaleString()}</td>
+          <td class="py-3 px-3 text-right text-rose-600 font-mono font-bold">${sumA1}</td>
+          <td class="py-3 px-3 text-right text-amber-700 font-mono font-bold">${sumA2.toLocaleString()}</td>
+          <td class="py-3 px-3 text-right text-indigo-700 font-mono font-bold">${sumA3.toLocaleString()}</td>
+          <td class="py-3 px-3 text-right text-rose-600 font-mono font-bold">${sumDeaths}</td>
+          <td class="py-3 px-3 text-right text-amber-700 font-mono font-bold">${sumInjuries.toLocaleString()}</td>
+          <td class="py-3 px-3 text-right text-emerald-700 font-mono font-bold">${sumRatio}%</td>
+        </tr>
+      `;
+    }
+
+    // Table Header Sorting
+    document.querySelectorAll('#data-table th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sort;
+        if (sortColumn === col) {
+          sortAsc = !sortAsc;
+        } else {
+          sortColumn = col;
+          sortAsc = true;
+        }
+        renderTable();
+      });
+    });
+
+    // CSV Export
+    exportCsvBtn.addEventListener('click', () => {
+      const data = getFilteredData();
+      let csv = 'Period,AD Year,ROC Year,Quarter,Total Incidents,Category A1 (Fatal),Category A2 (Injury),Category A3 (Damage),Fatalities,Injuries,Casualty Rate\n';
+      data.forEach(d => {
+        const ratio = ((d.a1 + d.a2) / (d.total || 1) * 100).toFixed(1) + '%';
+        csv += `"${d.period}",${d.year},${d.roc},"${d.quarter}",${d.total},${d.a1},${d.a2},${d.a3},${d.deaths},${d.injuries},"${ratio}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `taichung_delivery_accidents_${viewMode}_export.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // Window resize handler
+    window.addEventListener('resize', () => {
+      renderTrendChart(getFilteredData());
+    });
+
+    // Initial Launch
+    renderDashboard();
+  </script>
+</body>
+</html>
